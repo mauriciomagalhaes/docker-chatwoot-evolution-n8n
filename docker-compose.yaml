@@ -78,7 +78,7 @@ services:
   api:
     container_name: evolution_api
     hostname: evolution_api
-    image: davidsongomes/evolution-api:latest
+    image: davidsongomes/evolution-api:homolog
     restart: always
     ports:
       - 8080:8080
