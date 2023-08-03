@@ -4,5 +4,5 @@ Chatwoot with evoluton-api and n8n
  - Compilar
 
 
-#docker compose run --rm rails bundle exec rails db:chatwoot_prepare
-#docker compose up -d
+1 - docker compose run --rm rails bundle exec rails db:chatwoot_prepare
+2 - #docker compose up -d
