@@ -1,0 +1,131 @@
+version: '3.3'
+
+services:
+  base: &base
+    hostname: chatwoot
+    container_name: chatwoot
+    image: chatwoot/chatwoot:latest
+    env_file: .env ## Change this file for customized env variables
+    volumes:
+      - ./data/storage:/app/storage
+    networks:
+      - chatwoot
+
+  rails:
+    <<: *base
+    container_name: rails
+    hostname: rails_frontend
+    depends_on:
+      - postgres
+      - redis
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=production
+      - RAILS_ENV=production
+      - INSTALLATION_ENV=docker
+    entrypoint: docker/entrypoints/rails.sh
+    command: ['bundle', 'exec', 'rails', 's', '-p', '3000', '-b', '0.0.0.0']
+    networks:
+      - chatwoot
+      
+  sidekiq:
+    <<: *base
+    container_name: sidekiq
+    hostname: sidekiq
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - NODE_ENV=production
+      - RAILS_ENV=production
+      - INSTALLATION_ENV=docker
+    command: ['bundle', 'exec', 'sidekiq', '-C', 'config/sidekiq.yml']
+    networks:
+      - chatwoot
+
+  postgres:
+    container_name: postgres
+    hostname: postgres
+    image: postgres:12
+    restart: always
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=chatwoot
+      - POSTGRES_USER=postgres
+      # Please provide your own password.
+      - POSTGRES_PASSWORD=1q2w3e4r
+    networks:
+      - chatwoot
+
+  redis:
+    container_name: redis
+    hostname: redis
+    image: redis:alpine
+    restart: always
+    command: ["sh", "-c", "redis-server --requirepass \"$REDIS_PASSWORD\""]
+    env_file: .env
+    volumes:
+      - ./data/redis:/data
+    ports:
+      - '127.0.0.1:6379:6379'
+    networks:
+      - chatwoot
+
+  api:
+    container_name: evolution_api
+    hostname: evolution_api
+    image: davidsongomes/evolution-api:latest
+    restart: always
+    ports:
+      - 8080:8080
+    volumes:
+      - ./data/evolution_instances:/evolution/instances
+      - ./data/evolution_store:/evolution/store
+    networks:
+      - chatwoot
+    env_file: ./api/.env
+    command: ['node', './dist/src/main.js']
+    expose:
+      - 8080
+
+  mongodb:
+    container_name: mongodb
+    image: mongo:4.4.18
+    restart: always
+    ports:
+      - 27017:27017
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=root
+      - PUID=1000
+      - PGID=1000
+    volumes:
+      - ./data/evolution_mongodb_data:/data/db
+      - ./data/evolution_mongodb_configdb:/data/configdb
+    expose:
+      - 27017
+    networks:
+      - chatwoot
+
+  mongo-express:
+    image: mongo-express
+    environment:
+      ME_CONFIG_BASICAUTH_USERNAME: root
+      ME_CONFIG_BASICAUTH_PASSWORD: root
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: root
+    ports:
+      - 8081:8081
+    links:
+      - mongodb
+    networks:
+      - chatwoot
+  
+networks:
+  chatwoot:
+    driver: bridge
